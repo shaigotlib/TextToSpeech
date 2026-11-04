@@ -48,12 +48,12 @@ Write-Host "[✓] Python interpreter found: $PythonWPath" -ForegroundColor Green
 
 # 3. Verify dependencies
 Write-Host "[*] Checking Python dependencies..." -ForegroundColor Yellow
-$depsCheck = & python -c "import win32gui, win32clipboard, win32com.client, keyboard; print('OK')" 2>$null
+$depsCheck = & python -c "import win32gui, win32clipboard, win32com.client, keyboard, edge_tts; print('OK')" 2>$null
 if ($depsCheck -ne "OK") {
-    Write-Host "[*] Installing required dependencies (pywin32, keyboard)..." -ForegroundColor Yellow
-    & python -m pip install pywin32 keyboard
+    Write-Host "[*] Installing required dependencies (pywin32, keyboard, edge-tts)..." -ForegroundColor Yellow
+    & python -m pip install --user pywin32 keyboard edge-tts
 }
-Write-Host "[✓] Dependencies verified (pywin32, keyboard ready)." -ForegroundColor Green
+Write-Host "[✓] Dependencies verified (pywin32, keyboard, edge-tts ready)." -ForegroundColor Green
 
 # 4. Create Windows Startup Shortcut
 $StartupFolder = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Startup)

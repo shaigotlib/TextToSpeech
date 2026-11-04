@@ -17,3 +17,58 @@
 2026-11-04 13:48:19,041 [INFO] Speaking captured text: 1 characters.
 2026-11-04 13:49:16,036 [INFO] Hotkey Ctrl+Shift+R triggered.
 2026-11-04 13:49:16,205 [INFO] Speaking captured text: 1 characters.
+2026-11-04 13:58:43,162 [INFO] Starting Read Aloud Desktop Utility (Ctrl+Shift+R)...
+2026-11-04 13:58:43,240 [INFO] Global hotkey registered: ctrl+shift+r (suppress=True)
+2026-11-04 13:58:43,240 [INFO] ReadAloudService started with hotkey Ctrl+Shift+R.
+2026-11-04 14:06:34,120 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 14:06:34,679 [INFO] Speaking captured text (17 chars): 'the background re'
+2026-11-04 14:07:01,888 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 14:07:02,443 [INFO] Speaking captured text (272 chars): 'Please Test It Now\n\nA fresh instance is running in the backg'
+2026-11-04 14:07:31,256 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 14:07:31,375 [INFO] Speaking captured text (151 chars): "ificate' is mostly used in the FairPlay and PlayReady ecosys"
+2026-11-04 14:08:36,072 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 14:08:36,207 [INFO] Speaking captured text (292 chars): 'As announced yesterday, Kaltura has been selected by Israel’'
+2026-11-04 15:05:13,847 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:05:13,987 [INFO] Speaking captured text (600 chars): 'Your technical logic is entirely correct. Here is a polished'
+2026-11-04 15:05:34,274 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:05:34,274 [INFO] Currently speaking - stopping speech.
+2026-11-04 15:05:45,482 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:05:45,662 [INFO] Speaking captured text (2376 chars): 'Your colleague has spotted a genuine ambiguity in the text: '
+2026-11-04 15:08:59,297 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:08:59,449 [INFO] Speaking captured text (2147 chars): 'Why the TV Operator must provide their own DRM credentials\n\n'
+2026-11-04 15:13:24,433 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:13:24,582 [INFO] Speaking captured text (1481 chars): 'Think of it like a Netflix account: technically, we could sh'
+2026-11-04 15:15:01,024 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:15:01,024 [INFO] Currently speaking - stopping speech.
+2026-11-04 15:19:44,607 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:19:45,178 [INFO] Speaking captured text (557 chars): 'Important Consideration:\nIf you configure a default_security'
+2026-11-04 15:22:17,833 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:22:18,406 [INFO] Speaking captured text (189 chars): '※ recap: We built a background utility that reads selected t'
+2026-11-04 15:23:46,769 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:23:46,897 [INFO] Speaking captured text (210 chars): '# Read Aloud Desktop Utility - Installation & User Guide\r\n\r\n'
+2026-11-04 15:24:13,896 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:24:14,037 [INFO] Speaking captured text (1192 chars): '## 🚀 Key Features\r\n\r\n- **Global Hotkey:** Press **`Ctrl + Sh'
+2026-11-04 15:25:32,300 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:25:32,300 [INFO] Currently speaking - stopping speech.
+2026-11-04 15:25:33,197 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:25:33,363 [INFO] Speaking captured text (506 chars): '## 🛠️ Quick Installation (1-Click)\r\n\r\n1. Open **PowerShell**'
+2026-11-04 15:26:41,169 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:26:41,328 [INFO] Speaking captured text (2314 chars): '2. Run the automated installer:\r\n   ```powershell\r\n   .\\inst'
+2026-11-04 15:27:55,493 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:27:55,493 [INFO] Currently speaking - stopping speech.
+2026-11-04 15:29:18,045 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:29:18,180 [INFO] Speaking captured text (115 chars): 'Whats up\n \nI have a call tmrw with Cellcom, regarding basedW'
+2026-11-04 15:50:44,735 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:50:44,897 [INFO] Speaking captured text (3274 chars): 'Hi Vadim Savich, Shai Gotlib for WV/PR they can use Kaltura/'
+2026-11-04 15:50:59,304 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:50:59,304 [INFO] Currently speaking - stopping speech.
+2026-11-04 15:55:05,761 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:55:06,334 [INFO] Speaking captured text (395 chars): '※ recap: We built a background utility that reads selected t'
+2026-11-04 15:55:24,790 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:55:24,790 [INFO] Currently speaking - stopping speech.
+2026-11-04 15:55:30,190 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:55:30,338 [INFO] Speaking captured text (50 chars): ',שמע... ריגש אותי העץ\nכל הבית ריח\n \nנכנסתי לזה חזק'
+2026-11-04 15:55:34,918 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:55:35,058 [INFO] Speaking captured text (50 chars): ',שמע... ריגש אותי העץ\nכל הבית ריח\n \nנכנסתי לזה חזק'
+2026-11-04 15:55:41,048 [INFO] Hotkey Ctrl+Shift+R triggered.
+2026-11-04 15:55:41,180 [INFO] Speaking captured text (33 chars): ',שמע... ריגש אותי העץ\nכל הבית ריח'

@@ -7,6 +7,9 @@ A lightweight background Windows utility that reads aloud any selected text acro
 ## 🚀 Key Features
 
 - **Global Hotkey:** Press **`Ctrl + Shift + R`** from anywhere to read selected text aloud.
+- **Bilingual Hebrew & English Support:** Automatically detects the language of the selected text:
+  - **Hebrew text:** Reads with natural Hebrew neural voice (`Hila`).
+  - **English text:** Reads with fast Windows voice (`David`).
 - **Universal Application Support:**
   - **PowerShell / Windows Terminal / CMD**
   - **Notepad & Notepad++**

@@ -59,5 +59,12 @@ class TestSpeechEngine(unittest.TestCase):
         res = self.engine.set_voice_by_name(first_voice)
         self.assertTrue(res)
 
+    def test_hebrew_detection(self):
+        self.assertTrue(self.engine.is_hebrew("שלום עולם"))
+        self.assertTrue(self.engine.is_hebrew("Status: השרת פעיל"))
+        self.assertFalse(self.engine.is_hebrew("Hello world!"))
+        self.assertFalse(self.engine.is_hebrew("1234567890"))
+        self.assertFalse(self.engine.is_hebrew(""))
+
 if __name__ == '__main__':
     unittest.main()

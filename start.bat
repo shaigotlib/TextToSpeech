@@ -5,8 +5,8 @@ echo  Starting Read Aloud Desktop Utility in the background
 echo  Hotkey: Ctrl + Shift + R
 echo ========================================================
 
-rem Terminate any previous instance
-taskkill /F /FI "IMAGENAME eq pythonw.exe" /FI "WINDOWTITLE eq ReadAloud*" >nul 2>&1
+rem Terminate any previous main.pyw instances cleanly
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*main.pyw*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1
 
 rem Launch main.pyw silently using pythonw
 start "" pythonw "%~dp0main.pyw"

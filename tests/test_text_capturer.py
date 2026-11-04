@@ -39,6 +39,14 @@ class TestTextCapturer(unittest.TestCase):
         self.assertEqual(self.capturer.clean_text(""), "")
         self.assertEqual(self.capturer.clean_text("   \r\n   "), "")
 
+    def test_has_speakable_content(self):
+        self.assertTrue(self.capturer.has_speakable_content("Hello PowerShell"))
+        self.assertTrue(self.capturer.has_speakable_content("123"))
+        self.assertFalse(self.capturer.has_speakable_content(""))
+        self.assertFalse(self.capturer.has_speakable_content("   \r\n\t  "))
+        self.assertFalse(self.capturer.has_speakable_content("\x03"))
+        self.assertFalse(self.capturer.has_speakable_content("\x12"))
+
     def test_is_terminal_window(self):
         self.assertTrue(self.capturer.is_terminal_class("CASCADIA_HOSTING_WINDOW_CLASS"))
         self.assertTrue(self.capturer.is_terminal_class("ConsoleWindowClass"))

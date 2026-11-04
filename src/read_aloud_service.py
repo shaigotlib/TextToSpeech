@@ -36,12 +36,11 @@ class ReadAloudService:
 
         # 2. Capture highlighted text across active window
         text = self.capturer.get_selected_text()
-        if text:
-            logging.info(f"Speaking captured text: {len(text)} characters.")
+        if text and self.capturer.has_speakable_content(text):
+            logging.info(f"Speaking captured text ({len(text)} chars): {text[:60]!r}")
             self.engine.speak(text, async_mode=True)
         else:
-            logging.info("No text was selected in the active window.")
-            # Play a soft system sound to let the user know hotkey registered
+            logging.info(f"No valid speakable text captured (raw: {text!r}).")
             if self.feedback_beeps:
                 try:
                     winsound.MessageBeep(winsound.MB_ICONASTERISK)

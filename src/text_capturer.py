@@ -7,7 +7,7 @@ import win32gui
 import keyboard
 
 # Unique sentinel string used to detect fresh clipboard copy events
-CLIPBOARD_SENTINEL = "__READ_ALOUD_CLIPBOARD_SENTINEL_TOKEN_V1__"
+CLIPBOARD_SENTINEL = "__READ_ALOUD_CLIPBOARD_SENTINEL_TOKEN_V2__"
 
 # Known console and terminal window class names
 TERMINAL_WINDOW_CLASSES = {
@@ -85,22 +85,32 @@ class TextCapturer:
         return self.set_clipboard_text(saved_text)
 
     def clean_text(self, text: Optional[str]) -> str:
-        """Strip trailing and leading whitespace, normalizing string."""
+        """Strip trailing/leading whitespace and non-printable control characters."""
         if not text:
             return ""
-        return text.strip()
+        # Remove non-printable control characters except newline and tab
+        cleaned = "".join(ch for ch in text if ch >= " " or ch in "\t\n\r")
+        return cleaned.strip()
+
+    def has_speakable_content(self, text: Optional[str]) -> bool:
+        """Check if text contains actual pronounceable words or numbers."""
+        if not text:
+            return False
+        return any(c.isalnum() for c in text)
 
     def simulate_copy(self, is_terminal: bool = False) -> None:
         """Release physically held hotkeys and trigger application copy sequence."""
         try:
-            # First release any keys that might be held physically by the user
+            # Release all physical keys involved in Ctrl+Shift+R
             keyboard.release("r")
             time.sleep(0.01)
+            keyboard.release("shift")
+            time.sleep(0.01)
             keyboard.release("ctrl")
-            time.sleep(0.02)
+            time.sleep(0.03)
 
             if is_terminal:
-                # In Windows Terminal, Ctrl+Shift+C and Ctrl+C copy highlighted text
+                # In Windows Terminal, Ctrl+Shift+C copies selection without aborting
                 keyboard.send("ctrl+shift+c")
                 time.sleep(0.03)
                 keyboard.send("ctrl+c")
@@ -147,11 +157,13 @@ class TextCapturer:
         self.restore_clipboard(backup)
 
         # Fallback for Windows Terminal with "Copy on select":
-        # If simulated copy yielded nothing (because selection was already copied upon mouse select)
-        # and the previous clipboard content had text, use that!
         if not selected and is_terminal and backup.get("text"):
             prev = backup["text"]
-            if prev and prev != CLIPBOARD_SENTINEL and prev.strip():
+            if prev and prev != CLIPBOARD_SENTINEL and self.has_speakable_content(prev):
                 selected = prev
 
-        return self.clean_text(selected)
+        cleaned = self.clean_text(selected)
+        if not self.has_speakable_content(cleaned):
+            return ""
+
+        return cleaned

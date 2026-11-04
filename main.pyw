@@ -28,7 +28,7 @@ logging.basicConfig(
 from src.read_aloud_service import ReadAloudService
 from src.tray_icon import TrayIcon
 
-MUTEX_NAME = "Global\\ReadAloudTTS_SingleInstance_Mutex_v2"
+MUTEX_NAME = "Local\\ReadAloudTTS_SingleInstance_Mutex_v3"
 
 
 def acquire_single_instance_mutex():

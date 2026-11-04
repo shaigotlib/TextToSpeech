@@ -102,10 +102,10 @@ class HotkeyManager:
             self._hook_handle = keyboard.add_hotkey(
                 self._hotkey_str,
                 self._on_hotkey_triggered,
-                suppress=False,
+                suppress=True,
                 trigger_on_release=False,
             )
-            logging.info(f"Global hotkey registered: {self._hotkey_str}")
+            logging.info(f"Global hotkey registered: {self._hotkey_str} (suppress=True)")
         except Exception as e:
             logging.error(f"Failed to register global hotkey {self._hotkey_str}: {e}")
 

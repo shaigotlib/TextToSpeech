@@ -14,8 +14,8 @@ class TestHotkeyManager(unittest.TestCase):
         def dummy_cb():
             called.append(True)
 
-        # Register Ctrl+R (ord('R') == 0x52)
-        success = manager.add_hotkey(hotkey_id=1, modifiers=MOD_CONTROL, vk_code=ord('R'), callback=dummy_cb)
+        # Register Ctrl+Shift+R (ord('R') == 0x52)
+        success = manager.add_hotkey(hotkey_id=1, modifiers=MOD_CONTROL | MOD_SHIFT, vk_code=ord('R'), callback=dummy_cb)
         self.assertTrue(success)
         self.assertIn(1, manager._hotkeys)
         self.assertEqual(manager._hotkeys[1]['callback'], dummy_cb)

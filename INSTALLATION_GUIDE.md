@@ -1,12 +1,12 @@
 # Read Aloud Desktop Utility - Installation & User Guide
 
-A lightweight background Windows utility that reads aloud any selected text across your applications whenever you press **`Ctrl+R`**.
+A lightweight background Windows utility that reads aloud any selected text across your applications whenever you press **`Ctrl + Shift + R`**.
 
 ---
 
 ## 🚀 Key Features
 
-- **Global Hotkey:** Press `Ctrl+R` from anywhere to read selected text aloud.
+- **Global Hotkey:** Press **`Ctrl + Shift + R`** from anywhere to read selected text aloud.
 - **Universal Application Support:**
   - **PowerShell / Windows Terminal / CMD**
   - **Notepad & Notepad++**
@@ -15,7 +15,8 @@ A lightweight background Windows utility that reads aloud any selected text acro
   - **Microsoft Office:** Word, Excel, PowerPoint
   - **Collaboration:** Microsoft Teams, Slack
   - Any standard Windows window or text field.
-- **Toggle to Stop:** Pressing `Ctrl+R` again while speech is playing immediately cancels and stops speech.
+- **Toggle to Stop:** Pressing **`Ctrl + Shift + R`** again while speech is playing immediately cancels and stops speech.
+- **Audible Feedback:** If you press the hotkey without any text selected, a subtle chime sounds so you know the utility heard you.
 - **Clipboard Safe:** Captures highlighted text without overwriting or losing your previous clipboard contents.
 - **100% Local & Offline:** Uses built-in Windows speech synthesis (SAPI5) — no cloud keys, no fees, no internet needed.
 - **Zero-Distraction Background Execution:** Runs silently via `pythonw.exe` without an open terminal window.
@@ -36,9 +37,20 @@ A lightweight background Windows utility that reads aloud any selected text acro
    ```
 
 The script will:
-- Check your Python environment and verify required libraries (`pywin32`).
+- Check your Python environment and verify required libraries (`pywin32`, `keyboard`).
 - Create an auto-start shortcut in your Windows Startup folder (`shell:startup`).
 - Launch the utility in the background immediately.
+
+---
+
+## 🏃 Manual Launch (Without Installer)
+
+If you just want to run the tool directly without running the installer:
+- Double-click **`start.bat`**, OR
+- In PowerShell, run:
+  ```powershell
+  pythonw main.pyw
+  ```
 
 ---
 
@@ -65,8 +77,8 @@ To verify or view your Startup folder at any time:
    - In **Outlook**: Highlight text in any received email or draft.
    - In **Notepad / Notepad++**: Select lines or words.
    - In **Chrome / Edge / Teams / Slack**: Highlight any chat message or webpage text.
-2. **Press `Ctrl + R`**: The computer reads the selected text aloud immediately.
-3. **Stop Speech**: If you want to interrupt or stop speech before it finishes, press **`Ctrl + R`** again.
+2. **Press `Ctrl + Shift + R`**: The computer reads the selected text aloud immediately.
+3. **Stop Speech**: If you want to interrupt or stop speech before it finishes, press **`Ctrl + Shift + R`** again.
 
 ---
 

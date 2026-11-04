@@ -15,7 +15,7 @@ class TrayIcon:
 
     def __init__(
         self,
-        tooltip: str = "Read Aloud (Ctrl+R)",
+        tooltip: str = "Read Aloud (Ctrl+Shift+R)",
         on_exit: Optional[Callable[[], None]] = None,
         on_test_speak: Optional[Callable[[], None]] = None,
         on_speed_change: Optional[Callable[[int], None]] = None,
@@ -64,7 +64,7 @@ class TrayIcon:
 
     def _show_menu(self):
         menu = win32gui.CreatePopupMenu()
-        win32gui.AppendMenu(menu, win32con.MF_STRING | win32con.MF_GRAYED, 1000, "Read Aloud (Ctrl+R Active)")
+        win32gui.AppendMenu(menu, win32con.MF_STRING | win32con.MF_GRAYED, 1000, "Read Aloud (Ctrl+Shift+R Active)")
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 1001, "")
         win32gui.AppendMenu(menu, win32con.MF_STRING, 1002, "Test Speech")
 

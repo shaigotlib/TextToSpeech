@@ -46,14 +46,14 @@ if (-not (Test-Path $PythonWPath)) {
 
 Write-Host "[✓] Python interpreter found: $PythonWPath" -ForegroundColor Green
 
-# 3. Verify PyWin32 dependency
+# 3. Verify dependencies
 Write-Host "[*] Checking Python dependencies..." -ForegroundColor Yellow
-$pywin32Check = & python -c "import win32gui, win32clipboard, win32com.client; print('OK')" 2>$null
-if ($pywin32Check -ne "OK") {
-    Write-Host "[*] Installing required pywin32 dependency..." -ForegroundColor Yellow
-    & python -m pip install pywin32
+$depsCheck = & python -c "import win32gui, win32clipboard, win32com.client, keyboard; print('OK')" 2>$null
+if ($depsCheck -ne "OK") {
+    Write-Host "[*] Installing required dependencies (pywin32, keyboard)..." -ForegroundColor Yellow
+    & python -m pip install pywin32 keyboard
 }
-Write-Host "[✓] Dependencies verified (pywin32 ready)." -ForegroundColor Green
+Write-Host "[✓] Dependencies verified (pywin32, keyboard ready)." -ForegroundColor Green
 
 # 4. Create Windows Startup Shortcut
 $StartupFolder = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Startup)
@@ -66,7 +66,7 @@ $Shortcut = $WScriptShell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = $PythonWPath
 $Shortcut.Arguments = "`"$MainScriptPath`""
 $Shortcut.WorkingDirectory = $ScriptDir
-$Shortcut.Description = "Read Aloud Selected Text Background Utility (Ctrl+R)"
+$Shortcut.Description = "Read Aloud Selected Text Background Utility (Ctrl+Shift+R)"
 $Shortcut.Save()
 
 Write-Host "[✓] Startup shortcut created: $ShortcutPath" -ForegroundColor Green
@@ -88,5 +88,5 @@ if (-not $TestOnly) {
 }
 
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "Installation Complete! Press Ctrl+R on any highlighted text." -ForegroundColor Green
+Write-Host "Installation Complete! Press Ctrl+Shift+R on any highlighted text." -ForegroundColor Green
 Write-Host "=========================================" -ForegroundColor Cyan

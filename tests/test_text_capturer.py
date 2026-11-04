@@ -39,5 +39,13 @@ class TestTextCapturer(unittest.TestCase):
         self.assertEqual(self.capturer.clean_text(""), "")
         self.assertEqual(self.capturer.clean_text("   \r\n   "), "")
 
+    def test_is_terminal_window(self):
+        self.assertTrue(self.capturer.is_terminal_class("CASCADIA_HOSTING_WINDOW_CLASS"))
+        self.assertTrue(self.capturer.is_terminal_class("ConsoleWindowClass"))
+        self.assertTrue(self.capturer.is_terminal_class("PseudoConsoleWindow"))
+        self.assertFalse(self.capturer.is_terminal_class("Notepad"))
+        self.assertFalse(self.capturer.is_terminal_class("Chrome_WidgetWin_1"))
+        self.assertFalse(self.capturer.is_terminal_class("rctrl_renwnd32"))  # Outlook
+
 if __name__ == '__main__':
     unittest.main()

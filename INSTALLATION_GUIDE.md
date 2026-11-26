@@ -139,6 +139,18 @@ Look at your Windows taskbar system tray (bottom-right corner, near the clock):
   - **Release Navigation Keys**: Instantly unhooks the arrow keys and clears reading state, giving full control back to VS Code.
   - **Exit**: Cleanly shuts down the utility.
 
+## 🔧 Troubleshooting
+
+If the utility ever stops responding (for example, after your laptop resumes from prolonged deep sleep or **Hibernate** mode):
+1. **Quick Restart**:
+   - Double-click **`stop.bat`** (or run `.\stop.ps1` in PowerShell).
+   - Then double-click **`start.bat`** (or run `pythonw main.pyw`).
+   - The tool will immediately reload and re-register all hotkeys.
+2. **Reboot**:
+   - If a background process or audio device was locked by Windows during hibernation, simply rebooting your computer will cleanly launch the tool fresh on startup.
+3. **Check Passthrough Mode**:
+   - If `Ctrl + Alt + R` is passing keystrokes directly to your application without reading, you may have accidentally toggled Passthrough Mode on. Press **`Ctrl + Alt + \`** to switch capturing back on (or right-click the system tray icon and click **Enable Hotkeys**).
+
 ---
 
 ## 🗑️ How to Uninstall

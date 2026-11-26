@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 .superpowers/
+*.log
+read_aloud.log
+.vscode/
+.idea/

@@ -9,6 +9,7 @@ class TestSpeechEngine(unittest.TestCase):
     def test_initialization(self):
         self.assertIsNotNone(self.engine)
         self.assertFalse(self.engine.is_speaking())
+        self.assertFalse(self.engine.is_paused())
 
     def test_voice_enumeration(self):
         voices = self.engine.get_voices()
@@ -46,6 +47,20 @@ class TestSpeechEngine(unittest.TestCase):
         # Stop speech immediately
         self.engine.stop()
         self.assertFalse(self.engine.is_speaking())
+        self.assertFalse(self.engine.is_paused())
+
+    def test_pause_and_resume_state(self):
+        self.engine.speak("Testing pause and resume state tracking in speech engine", async_mode=True)
+        time.sleep(0.05)
+        # When speaking, pause can be called
+        self.engine.pause()
+        self.assertTrue(self.engine.is_paused())
+        # Resume
+        self.engine.resume()
+        self.assertFalse(self.engine.is_paused())
+        # Stop cleans up pause state
+        self.engine.stop()
+        self.assertFalse(self.engine.is_paused())
 
     def test_speak_empty_string(self):
         # Speaking whitespace or empty string returns False without speaking
@@ -63,6 +78,36 @@ class TestSpeechEngine(unittest.TestCase):
         self.assertTrue(self.engine.is_hebrew("שלום עולם"))
         self.assertTrue(self.engine.is_hebrew("Status: השרת פעיל"))
         self.assertFalse(self.engine.is_hebrew("Hello world!"))
+
+    def test_word_index_and_seek_english(self):
+        from src.text_model import TextDocument
+        doc = TextDocument("First second third fourth fifth sixth")
+        self.engine.speak(doc.raw_text, async_mode=True)
+        time.sleep(0.05)
+
+        # Current word index should be an integer within [0, doc.total_words - 1]
+        idx = self.engine.get_current_word_index(doc)
+        self.assertIsInstance(idx, int)
+        self.assertTrue(0 <= idx < doc.total_words)
+
+        # Seek to word 2 ("third")
+        seek_res = self.engine.seek_and_play(doc, 2)
+        self.assertTrue(seek_res)
+        self.assertEqual(self.engine.get_last_word_index(), 2)
+
+        self.engine.stop()
+        self.assertFalse(self.engine.is_speaking())
+
+    def test_seek_clamps_out_of_bounds(self):
+        from src.text_model import TextDocument
+        doc = TextDocument("One two three")
+        # Seeking beyond bounds clamps
+        self.engine.seek_and_play(doc, 100)
+        self.assertEqual(self.engine.get_last_word_index(), 2)
+
+        self.engine.seek_and_play(doc, -10)
+        self.assertEqual(self.engine.get_last_word_index(), 0)
+        self.engine.stop()
         self.assertFalse(self.engine.is_hebrew("1234567890"))
         self.assertFalse(self.engine.is_hebrew(""))
 

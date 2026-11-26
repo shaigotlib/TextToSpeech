@@ -15,20 +15,27 @@ class TrayIcon:
 
     def __init__(
         self,
-        tooltip: str = "Read Aloud (Ctrl+Shift+R)",
+        tooltip: str = "Read Aloud (Ctrl+Alt+R)",
         on_exit: Optional[Callable[[], None]] = None,
         on_test_speak: Optional[Callable[[], None]] = None,
         on_speed_change: Optional[Callable[[int], None]] = None,
+        on_clear_reading: Optional[Callable[[], None]] = None,
+        on_toggle_passthrough: Optional[Callable[[], None]] = None,
+        is_passthrough_active: Optional[Callable[[], bool]] = None,
     ):
         self.tooltip = tooltip
         self.on_exit = on_exit
         self.on_test_speak = on_test_speak
         self.on_speed_change = on_speed_change
+        self.on_clear_reading = on_clear_reading
+        self.on_toggle_passthrough = on_toggle_passthrough
+        self.is_passthrough_active = is_passthrough_active
 
         self.hwnd = None
         self._thread = None
         self._running = False
         self._hicon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
+        self._wm_taskbar_created = win32gui.RegisterWindowMessage("TaskbarCreated")
 
     def _create_window(self):
         wc = win32gui.WNDCLASS()
@@ -64,8 +71,14 @@ class TrayIcon:
 
     def _show_menu(self):
         menu = win32gui.CreatePopupMenu()
-        win32gui.AppendMenu(menu, win32con.MF_STRING | win32con.MF_GRAYED, 1000, "Read Aloud (Ctrl+Shift+R Active)")
+        passthrough = self.is_passthrough_active() if self.is_passthrough_active else False
+        status_label = "Read Aloud (PASSED THROUGH / DISABLED)" if passthrough else "Read Aloud (Ctrl+Alt+R Active)"
+        win32gui.AppendMenu(menu, win32con.MF_STRING | win32con.MF_GRAYED, 1000, status_label)
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 1001, "")
+
+        toggle_label = "Enable Hotkeys (Capture Mode)" if passthrough else "Disable Hotkeys (Passthrough Mode - Ctrl+Alt+\\)"
+        win32gui.AppendMenu(menu, win32con.MF_STRING, 1006, toggle_label)
+        win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 1007, "")
         win32gui.AppendMenu(menu, win32con.MF_STRING, 1002, "Test Speech")
 
         # Submenu for Speed
@@ -76,6 +89,7 @@ class TrayIcon:
         win32gui.AppendMenu(menu, win32con.MF_POPUP, speed_menu, "Speech Speed")
 
         win32gui.AppendMenu(menu, win32con.MF_SEPARATOR, 1003, "")
+        win32gui.AppendMenu(menu, win32con.MF_STRING, 1005, "Release Navigation Keys")
         win32gui.AppendMenu(menu, win32con.MF_STRING, 1004, "Exit")
 
         pos = win32gui.GetCursorPos()
@@ -91,7 +105,9 @@ class TrayIcon:
         )
         win32gui.DestroyMenu(menu)
 
-        if cmd == 1002 and self.on_test_speak:
+        if cmd == 1006 and self.on_toggle_passthrough:
+            self.on_toggle_passthrough()
+        elif cmd == 1002 and self.on_test_speak:
             self.on_test_speak()
         elif cmd == 1010 and self.on_speed_change:
             self.on_speed_change(-3)
@@ -99,6 +115,8 @@ class TrayIcon:
             self.on_speed_change(0)
         elif cmd == 1012 and self.on_speed_change:
             self.on_speed_change(3)
+        elif cmd == 1005 and self.on_clear_reading:
+            self.on_clear_reading()
         elif cmd == 1004:
             self.stop()
             if self.on_exit:
@@ -109,6 +127,27 @@ class TrayIcon:
             if lparam in (win32con.WM_RBUTTONUP, win32con.WM_LBUTTONUP):
                 self._show_menu()
                 return 0
+        elif msg == self._wm_taskbar_created:
+            # Recreate tray icon if Windows Explorer restarts
+            flags = win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP
+            nid = (self.hwnd, 0, flags, WM_TRAY_CALLBACK, self._hicon, self.tooltip)
+            win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
+            return 0
+        elif msg == win32con.WM_COMMAND:
+            cmd = wparam & 0xFFFF
+            if cmd == 1004:
+                self.stop()
+                if self.on_exit:
+                    self.on_exit()
+                return 0
+            elif cmd == 1006 and self.on_toggle_passthrough:
+                self.on_toggle_passthrough()
+                return 0
+        elif msg == win32con.WM_CLOSE:
+            self.stop()
+            if self.on_exit:
+                self.on_exit()
+            return 0
         elif msg == win32con.WM_DESTROY:
             nid = (self.hwnd, 0)
             win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)

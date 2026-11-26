@@ -2,7 +2,7 @@
 """
 Read Aloud Desktop Utility (main.pyw)
 Runs quietly in the background without a console window.
-Listens for Ctrl+Shift+R and reads selected text across any active Windows application.
+Listens for Ctrl+Alt+R, Ctrl+Alt+Space, Ctrl+Alt+Up, Ctrl+Alt+Down, Ctrl+Alt+Right, and Ctrl+Alt+Left across any active Windows application.
 """
 
 import sys
@@ -45,7 +45,7 @@ def acquire_single_instance_mutex():
 
 def main():
     mutex_handle = acquire_single_instance_mutex()
-    logging.info("Starting Read Aloud Desktop Utility (Ctrl+Shift+R)...")
+    logging.info("Starting Read Aloud Desktop Utility (Ctrl+Alt+R)...")
 
     service = ReadAloudService()
     service.start()
@@ -58,7 +58,7 @@ def main():
     def on_test():
         logging.info("Test speech requested from tray menu.")
         service.engine.speak(
-            "Read aloud is active. Select any text and press Control Shift R.",
+            "Read aloud is active. Select any text and press Control Alt R.",
             async_mode=True,
         )
 
@@ -66,11 +66,26 @@ def main():
         service.engine.set_rate(rate_offset)
         service.engine.speak(f"Speed set to {rate_offset}", async_mode=True)
 
+    def on_clear_reading():
+        logging.info("Releasing navigation arrow keys from tray menu.")
+        service.release_navigation()
+        try:
+            import winsound
+            winsound.MessageBeep(winsound.MB_OK)
+        except Exception:
+            pass
+
+    def on_toggle_passthrough():
+        service.on_toggle_passthrough_pressed()
+
     tray = TrayIcon(
-        tooltip="Read Aloud Utility (Ctrl+Shift+R Active)",
+        tooltip="Read Aloud Utility (Ctrl+Alt+R Active)",
         on_exit=on_exit,
         on_test_speak=on_test,
         on_speed_change=on_speed_change,
+        on_clear_reading=on_clear_reading,
+        on_toggle_passthrough=on_toggle_passthrough,
+        is_passthrough_active=service.is_passthrough_active,
     )
     tray.start()
 
@@ -87,12 +102,23 @@ def main():
             time.sleep(1.0)
     except (KeyboardInterrupt, SystemExit):
         pass
+    except Exception as e:
+        logging.error(f"Unexpected error in main loop: {e}", exc_info=True)
     finally:
-        tray.stop()
-        service.stop()
+        try:
+            tray.stop()
+        except Exception:
+            pass
+        try:
+            service.stop()
+        except Exception:
+            pass
         if mutex_handle:
             ctypes.windll.kernel32.CloseHandle(mutex_handle)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logging.critical(f"Fatal error running main: {e}", exc_info=True)

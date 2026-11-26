@@ -4,7 +4,6 @@ from typing import Dict, Any, Optional, Tuple
 import win32clipboard
 import win32con
 import win32gui
-import keyboard
 
 # Unique sentinel string used to detect fresh clipboard copy events
 CLIPBOARD_SENTINEL = "__READ_ALOUD_CLIPBOARD_SENTINEL_TOKEN_V2__"
@@ -99,24 +98,43 @@ class TextCapturer:
         return any(c.isalnum() for c in text)
 
     def simulate_copy(self, is_terminal: bool = False) -> None:
-        """Release physically held hotkeys and trigger application copy sequence."""
+        """Release physically held hotkeys and trigger application copy sequence via native Win32 input."""
+        KEYEVENTF_KEYUP = 0x0002
+        VK_R = 0x52
+        VK_MENU = 0x12     # Alt
+        VK_SHIFT = 0x10
+        VK_CONTROL = 0x11
+        VK_C = 0x43
+
         try:
-            # Release all physical keys involved in Ctrl+Shift+R
-            keyboard.release("r")
-            time.sleep(0.01)
-            keyboard.release("shift")
-            time.sleep(0.01)
-            keyboard.release("ctrl")
-            time.sleep(0.03)
+            # Release all physical modifier keys involved in Ctrl+Alt+R
+            for vk in (VK_R, VK_MENU, VK_SHIFT, VK_CONTROL):
+                self._user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)
+            time.sleep(0.02)
 
             if is_terminal:
                 # In Windows Terminal, Ctrl+Shift+C copies selection without aborting
-                keyboard.send("ctrl+shift+c")
-                time.sleep(0.03)
-                keyboard.send("ctrl+c")
+                self._user32.keybd_event(VK_CONTROL, 0, 0, 0)
+                self._user32.keybd_event(VK_SHIFT, 0, 0, 0)
+                self._user32.keybd_event(VK_C, 0, 0, 0)
+                time.sleep(0.02)
+                self._user32.keybd_event(VK_C, 0, KEYEVENTF_KEYUP, 0)
+                self._user32.keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, 0)
+                self._user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+                time.sleep(0.02)
+                # Fallback standard Ctrl+C
+                self._user32.keybd_event(VK_CONTROL, 0, 0, 0)
+                self._user32.keybd_event(VK_C, 0, 0, 0)
+                time.sleep(0.02)
+                self._user32.keybd_event(VK_C, 0, KEYEVENTF_KEYUP, 0)
+                self._user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
             else:
                 # Standard Windows copy shortcut across Notepad, Chrome, Word, Outlook, etc.
-                keyboard.send("ctrl+c")
+                self._user32.keybd_event(VK_CONTROL, 0, 0, 0)
+                self._user32.keybd_event(VK_C, 0, 0, 0)
+                time.sleep(0.02)
+                self._user32.keybd_event(VK_C, 0, KEYEVENTF_KEYUP, 0)
+                self._user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
         except Exception:
             pass
 

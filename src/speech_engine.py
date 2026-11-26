@@ -377,8 +377,14 @@ class SpeechEngine:
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            audio_bytes = loop.run_until_complete(self._build_bilingual_audio(segments, rate_str))
-            loop.close()
+            try:
+                audio_bytes = loop.run_until_complete(self._build_bilingual_audio(segments, rate_str))
+            finally:
+                try:
+                    loop.run_until_complete(asyncio.sleep(0.05))
+                except Exception:
+                    pass
+                loop.close()
 
             if self._stop_event.is_set() or not audio_bytes:
                 return

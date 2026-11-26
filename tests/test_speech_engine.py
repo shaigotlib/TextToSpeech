@@ -79,6 +79,18 @@ class TestSpeechEngine(unittest.TestCase):
         self.assertTrue(self.engine.is_hebrew("Status: השרת פעיל"))
         self.assertFalse(self.engine.is_hebrew("Hello world!"))
 
+    def test_bilingual_text_segmentation(self):
+        mixed = "שלום לכולם, welcome to our test! הנה עוד משפט."
+        segments = self.engine.segment_bilingual_text(mixed)
+        # Should produce segmented blocks with appropriate language tags
+        self.assertGreaterEqual(len(segments), 3)
+        self.assertEqual(segments[0][0], "he")
+        self.assertIn("שלום", segments[0][1])
+        self.assertEqual(segments[1][0], "en")
+        self.assertIn("welcome", segments[1][1])
+        self.assertEqual(segments[2][0], "he")
+        self.assertIn("הנה", segments[2][1])
+
     def test_word_index_and_seek_english(self):
         from src.text_model import TextDocument
         doc = TextDocument("First second third fourth fifth sixth")

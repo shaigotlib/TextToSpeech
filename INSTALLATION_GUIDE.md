@@ -16,9 +16,10 @@ A lightweight background Windows utility that reads aloud any selected text acro
   - **`Ctrl + Alt + \`**: **Toggle Shortcut Passthrough Mode** — When toggled, all tool shortcuts (such as `Ctrl+Alt+R`, `Ctrl+Alt+Space`, etc.) are released and passed directly to your focused application so they can be handled by it. Pressing `Ctrl + Alt + \` again restores capturing so `Ctrl+Alt+R` reads text aloud again.
   - **Zero App Interference:** Arrow navigation shortcuts (`Ctrl+Alt+Left/Right`) are dynamically hooked **only while reading text** and automatically released back to VS Code and other applications when reading is not active, or via "Release Navigation Keys" in the tray menu.
 - **Laptop Lid / Sleep & Wake Robustness:** Uses the native Windows kernel `RegisterHotKey` subsystem together with automatic `WM_POWERBROADCAST` (sleep/wake/resume) and `WM_WTSSESSION_CHANGE` (screen lock/unlock/logon) listeners. Closing your laptop lid, sleeping, or locking will never break the hotkeys — they are verified and re-registered upon opening and unlocking.
-- **Bilingual Hebrew & English Support:** Automatically detects the language of the selected text:
-  - **Hebrew text:** Reads with natural Hebrew neural voice (`Hila`).
-  - **English text:** Reads with fast Windows voice (`David`).
+- **Bilingual Hebrew & English Support with Native Pronunciation:**
+  - **Automatic Language Detection:** Seamlessly handles pure Hebrew, pure English, and mixed Hebrew/English sentences.
+  - **Native English Pronunciation inside Hebrew text:** When text begins in Hebrew and contains English terms (such as technical words, product names, or acronyms like `Ctrl+Alt+R`), the tool automatically segments the text and uses a native English neural voice (`Jenny`) for the English segments and the natural Hebrew neural voice (`Hila`) for the Hebrew segments, ensuring clear, natural pronunciation for both languages.
+  - **PowerShell / Terminal Visual Reversal Correction:** Windows PowerShell and console windows store Hebrew text in visual left-to-right buffer order. The tool detects when text is captured from terminal/console windows and restores the true right-to-left logical reading order while keeping standard GUI apps (Notepad, Chrome, Teams, Outlook, Word) 100% untouched.
 - **Universal Application Support:**
   - **PowerShell / Windows Terminal / CMD**
   - **Notepad & Notepad++**

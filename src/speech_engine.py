@@ -1,11 +1,12 @@
 import threading
 import asyncio
 import os
+import re
 import tempfile
 import ctypes
 import logging
 import bisect
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Tuple
 import win32com.client
 import pythoncom
 
@@ -19,8 +20,9 @@ except ImportError:
 SVS_FLAGS_ASYNC = 1
 SVS_PURGE_BEFORE_SPEAK = 2
 
-# Default natural Hebrew voice
+# Default natural neural voices
 DEFAULT_HEBREW_VOICE = "he-IL-HilaNeural"
+DEFAULT_ENGLISH_NEURAL_VOICE = "en-US-JennyNeural"
 
 
 class SpeechEngine:
@@ -50,6 +52,48 @@ class SpeechEngine:
         if not text:
             return False
         return any("֐" <= c <= "׿" for c in text)
+
+    def segment_bilingual_text(self, text: str) -> List[Tuple[str, str]]:
+        """Segments text into language blocks ('he' or 'en') for authentic native pronunciation.
+        Returns a list of (lang, text) tuples.
+        """
+        if not text or not text.strip():
+            return []
+
+        tokens = re.findall(r"\w+|[^\w\s]+|\s+", text, re.UNICODE)
+        segments: List[Tuple[str, str]] = []
+
+        current_lang = None
+        current_text = []
+
+        for token in tokens:
+            has_heb = any("֐" <= c <= "׿" for c in token)
+            has_lat = any(("a" <= c <= "z") or ("A" <= c <= "Z") for c in token)
+
+            if has_heb:
+                token_lang = "he"
+            elif has_lat:
+                token_lang = "en"
+            else:
+                token_lang = None  # Neutral (punctuation, numbers, spaces)
+
+            if current_lang is None:
+                if token_lang is not None:
+                    current_lang = token_lang
+                current_text.append(token)
+            else:
+                if token_lang is None or token_lang == current_lang:
+                    current_text.append(token)
+                else:
+                    # Switch language boundary
+                    segments.append((current_lang, "".join(current_text)))
+                    current_lang = token_lang
+                    current_text = [token]
+
+        if current_text:
+            segments.append((current_lang or "he", "".join(current_text)))
+
+        return segments
 
     def get_voices(self) -> List[str]:
         """Return the names/descriptions of all installed Windows SAPI voices."""
@@ -291,8 +335,34 @@ class SpeechEngine:
         finally:
             self._is_external_speaking = False
 
+    async def _download_segment_audio(self, text_chunk: str, voice_name: str, rate_str: str) -> bytes:
+        """Download raw MP3 audio bytes for a single speech segment."""
+        communicate = edge_tts.Communicate(text_chunk, voice_name, rate=rate_str)
+        audio_chunks = []
+        async for chunk in communicate.stream():
+            if self._stop_event.is_set():
+                return b""
+            if chunk["type"] == "audio":
+                audio_chunks.append(chunk["data"])
+        return b"".join(audio_chunks)
+
+    async def _build_bilingual_audio(self, segments: List[Tuple[str, str]], rate_str: str) -> bytes:
+        """Generate audio for each segment using its native neural voice and combine seamlessly."""
+        combined = []
+        for lang, chunk in segments:
+            if self._stop_event.is_set():
+                return b""
+            clean_chunk = chunk.strip()
+            if not clean_chunk:
+                continue
+            voice = DEFAULT_HEBREW_VOICE if lang == "he" else DEFAULT_ENGLISH_NEURAL_VOICE
+            data = await self._download_segment_audio(clean_chunk, voice, rate_str)
+            if data:
+                combined.append(data)
+        return b"".join(combined)
+
     def _speak_hebrew_worker(self, text: str) -> None:
-        """Generate and play Hebrew speech asynchronously."""
+        """Generate and play speech using natural neural voices with bilingual English/Hebrew switching."""
         tmp_path = ""
         try:
             self._stop_event.clear()
@@ -302,25 +372,24 @@ class SpeechEngine:
             rate_val = self.get_rate()
             rate_str = f"{rate_val * 5:+d}%" if rate_val != 0 else "+0%"
 
-            communicate = edge_tts.Communicate(text, DEFAULT_HEBREW_VOICE, rate=rate_str)
+            # Segment into Hebrew and English chunks for authentic native pronunciation
+            segments = self.segment_bilingual_text(text)
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            audio_bytes = loop.run_until_complete(self._build_bilingual_audio(segments, rate_str))
+            loop.close()
+
+            if self._stop_event.is_set() or not audio_bytes:
+                return
 
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
                 tmp_path = f.name
-
-            # Run async edge_tts download
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(communicate.save(tmp_path))
-            loop.close()
-
-            if self._stop_event.is_set():
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-                return
+                f.write(audio_bytes)
 
             self._play_audio_file(tmp_path)
         except Exception as e:
-            logging.error(f"Hebrew TTS generation failed: {e}. Falling back to SAPI.")
+            logging.error(f"Neural TTS generation failed: {e}. Falling back to SAPI.")
             self._is_external_speaking = False
             # Fallback to SAPI
             with self._lock:

@@ -1,4 +1,5 @@
 import time
+import re
 import ctypes
 from typing import Dict, Any, Optional, Tuple
 import win32clipboard
@@ -90,6 +91,42 @@ class TextCapturer:
         # Remove non-printable control characters except newline and tab
         cleaned = "".join(ch for ch in text if ch >= " " or ch in "\t\n\r")
         return cleaned.strip()
+
+    def normalize_terminal_text(self, text: str, is_terminal: bool) -> str:
+        """Restores proper Hebrew logical order if copied from terminal visual buffer.
+        Never alters text from GUI applications (Chrome, Notepad, Teams, Word, etc.).
+        """
+        if not is_terminal or not text:
+            return text
+
+        # Check if text contains any Hebrew characters
+        if not any("֐" <= c <= "׿" for c in text):
+            return text
+
+        lines = text.split("\n")
+        normalized_lines = []
+
+        for line in lines:
+            if not any("֐" <= c <= "׿" for c in line):
+                normalized_lines.append(line)
+                continue
+
+            # In visual terminal order, the line was rendered left-to-right.
+            # Hebrew words were rendered LTR (letters backwards), and words were placed LTR.
+            # Non-Hebrew chunks (English words, numbers, symbols) retain their internal LTR order.
+            pattern = re.compile(r"([֐-׿]+|[^֐-׿]+)")
+            chunks = pattern.findall(line)
+
+            reordered = []
+            for c in chunks:
+                if any("֐" <= ch <= "׿" for ch in c):
+                    reordered.append(c[::-1])
+                else:
+                    reordered.append(c)
+
+            normalized_lines.append("".join(reordered[::-1]))
+
+        return "\n".join(normalized_lines)
 
     def has_speakable_content(self, text: Optional[str]) -> bool:
         """Check if text contains actual pronounceable words or numbers."""
@@ -184,4 +221,6 @@ class TextCapturer:
         if not self.has_speakable_content(cleaned):
             return ""
 
-        return cleaned
+        # Normalize terminal visual Hebrew order if copied from console/terminal
+        normalized = self.normalize_terminal_text(cleaned, is_terminal=is_terminal)
+        return normalized

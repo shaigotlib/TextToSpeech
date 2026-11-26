@@ -55,5 +55,24 @@ class TestTextCapturer(unittest.TestCase):
         self.assertFalse(self.capturer.is_terminal_class("Chrome_WidgetWin_1"))
         self.assertFalse(self.capturer.is_terminal_class("rctrl_renwnd32"))  # Outlook
 
+    def test_normalize_visual_hebrew_terminal_text(self):
+        # When text is copied from terminal with visual (reversed) Hebrew
+        visual_sample = "תילסרבינוא הארקה"
+        normalized = self.capturer.normalize_terminal_text(visual_sample, is_terminal=True)
+        self.assertEqual(normalized, "הקראה אוניברסלית")
+
+        # When copied from non-terminal (Chrome, Notepad, Teams), it must NEVER be modified
+        normal_text = "הקראה אוניברסלית"
+        untouched = self.capturer.normalize_terminal_text(normal_text, is_terminal=False)
+        self.assertEqual(untouched, "הקראה אוניברסלית")
+
+    def test_normalize_mixed_terminal_hebrew_english(self):
+        # Mixed line copied from console where Hebrew letters/words are reversed
+        sample = "Ctrl+Alt+R תציחלב תילגנאבו"
+        normalized = self.capturer.normalize_terminal_text(sample, is_terminal=True)
+        self.assertIn("ובאנגלית", normalized)
+        self.assertIn("בלחיצת", normalized)
+        self.assertIn("Ctrl+Alt+R", normalized)
+
 if __name__ == '__main__':
     unittest.main()

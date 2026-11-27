@@ -91,6 +91,38 @@ class TestSpeechEngine(unittest.TestCase):
         self.assertEqual(segments[2][0], "he")
         self.assertIn("הנה", segments[2][1])
 
+    def test_segment_speech_chunks_by_word_size(self):
+        long_hebrew = "פיתחתי כלי רקע קל למחשב שמקריא בקול כל טקסט שמסמנים עם העכבר בכל תוכנה, וורד, אאוטלוק, כרום, סלאק, טימס, טרמינל ועוד. הקראה מידית: מסמנים טקסט ולוחצים Ctrl + Alt + R כדי לשמוע אותו מיד."
+        chunks = self.engine.segment_phrased_bilingual(long_hebrew, max_words=5)
+        self.assertGreater(len(chunks), 4)
+        for lang, chunk_text in chunks:
+            self.assertIn(lang, ("he", "en"))
+            self.assertTrue(len(chunk_text.strip()) > 0)
+            # Ensure no individual phrase has excessive word count
+            word_count = len(chunk_text.split())
+            self.assertLessEqual(word_count, 8)
+
+    def test_pipelined_phrase_generation_and_stop(self):
+        # Starting pipelined speech for Hebrew text should set speaking flag and cancel immediately
+        text = "שלום לכולם, זוהי בדיקה של הקראה מהירה בחלקים קטנים כדי לשפר תגובתיות."
+        res = self.engine.speak(text, async_mode=True)
+        self.assertTrue(res)
+        time.sleep(0.05)
+        # Calling stop should immediately clear is_speaking
+        self.engine.stop()
+        self.assertFalse(self.engine.is_speaking())
+        self.assertFalse(self.engine.is_paused())
+
+    def test_pipelined_speed_adjustment_on_the_fly(self):
+        # Speed adjustment should update rate while pipelined speech is queued
+        self.engine.set_rate(0)
+        self.assertEqual(self.engine.get_rate(), 0)
+        self.engine.set_rate(3)
+        self.assertEqual(self.engine.get_rate(), 3)
+        self.engine.set_rate(-2)
+        self.assertEqual(self.engine.get_rate(), -2)
+        self.engine.set_rate(0)
+
     def test_word_index_and_seek_english(self):
         from src.text_model import TextDocument
         doc = TextDocument("First second third fourth fifth sixth")

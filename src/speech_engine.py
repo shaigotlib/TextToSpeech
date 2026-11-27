@@ -6,6 +6,7 @@ import tempfile
 import ctypes
 import logging
 import bisect
+import queue
 from typing import List, Optional, Any, Tuple
 import win32com.client
 import pythoncom
@@ -46,6 +47,9 @@ class SpeechEngine:
         self._current_text: str = ""
         self._audio_duration_ms: int = 0
         self._word_timestamps: List[int] = []
+        self._pipeline_phrases: List[Tuple[str, str]] = []
+        self._pipeline_phrase_word_indices: List[int] = []
+        self._pipeline_active_index: int = 0
 
     def is_hebrew(self, text: Optional[str]) -> bool:
         """Return True if text contains any Hebrew characters (Unicode ֐-׿)."""
@@ -94,6 +98,71 @@ class SpeechEngine:
             segments.append((current_lang or "he", "".join(current_text)))
 
         return segments
+
+    def segment_phrased_bilingual(self, text: str, max_words: int = 5) -> List[Tuple[str, str]]:
+        """Splits text into short bite-sized phrases (typically 3-5 words) broken along natural
+        clause boundaries (. , ! ? ; : \n), retaining native language attribution ('he' or 'en').
+        Small adjacent clauses are merged up to max_words to maintain natural rhythm.
+        This enables rapid-start pipelined playback and high responsiveness to stop/speed controls.
+        """
+        if not text or not text.strip():
+            return []
+
+        raw_clauses = re.split(r"([.!?:;\n]+|,\s*)", text)
+        clauses = []
+        i = 0
+        while i < len(raw_clauses):
+            part = raw_clauses[i]
+            delim = raw_clauses[i + 1] if i + 1 < len(raw_clauses) else ""
+            c = (part + delim).strip()
+            if c:
+                clauses.append(c)
+            i += 2
+
+        bounded_clauses = []
+        for c in clauses:
+            words = c.split()
+            if len(words) <= max_words:
+                bounded_clauses.append(c)
+            else:
+                for k in range(0, len(words), max_words):
+                    sub = " ".join(words[k : k + max_words])
+                    if sub:
+                        bounded_clauses.append(sub)
+
+        # Merge small adjacent fragments up to max_words to avoid single-word network roundtrips
+        merged = []
+        cur_chunks = []
+        for bc in bounded_clauses:
+            w_count = len(bc.split())
+            cur_count = sum(len(x.split()) for x in cur_chunks)
+            if not cur_chunks:
+                cur_chunks.append(bc)
+            elif cur_count + w_count <= max_words:
+                cur_chunks.append(bc)
+            else:
+                merged.append(" ".join(cur_chunks))
+                cur_chunks = [bc]
+        if cur_chunks:
+            merged.append(" ".join(cur_chunks))
+
+        segments: List[Tuple[str, str]] = []
+        for ch in merged:
+            has_heb = any("֐" <= c <= "׿" for c in ch)
+            has_lat = any(("a" <= c <= "z") or ("A" <= c <= "Z") for c in ch)
+
+            if has_heb and not has_lat:
+                segments.append(("he", ch))
+            elif has_lat and not has_heb:
+                segments.append(("en", ch))
+            else:
+                sub_segs = self.segment_bilingual_text(ch)
+                for lang, txt in sub_segs:
+                    clean = txt.strip()
+                    if clean:
+                        segments.append((lang, clean))
+
+        return [(lang, txt.strip()) for lang, txt in segments if txt.strip()]
 
     def get_voices(self) -> List[str]:
         """Return the names/descriptions of all installed Windows SAPI voices."""
@@ -216,6 +285,13 @@ class SpeechEngine:
             return self._last_word_index
 
         if self._is_external_speaking:
+            base_idx = 0
+            if (
+                self._pipeline_phrase_word_indices
+                and 0 <= self._pipeline_active_index < len(self._pipeline_phrase_word_indices)
+            ):
+                base_idx = self._pipeline_phrase_word_indices[self._pipeline_active_index]
+
             buf = ctypes.create_unicode_buffer(128)
             self._winmm.mciSendStringW(f"status {self._mci_alias} position", buf, 128, 0)
             try:
@@ -225,9 +301,11 @@ class SpeechEngine:
                 if self._word_timestamps:
                     idx = bisect.bisect_right(self._word_timestamps, pos_ms) - 1
                     idx = max(0, min(idx, doc.total_words - 1))
-                    self._last_word_index = idx
+                    self._last_word_index = max(base_idx, idx)
+                else:
+                    self._last_word_index = base_idx
             except Exception:
-                pass
+                self._last_word_index = base_idx
             return self._last_word_index
 
         with self._lock:
@@ -249,20 +327,8 @@ class SpeechEngine:
 
         # Hebrew (MCI audio)
         if self.is_hebrew(doc.raw_text):
-            if self._current_audio_file and os.path.exists(self._current_audio_file):
-                if not self._word_timestamps and self._audio_duration_ms > 0:
-                    self._word_timestamps = doc.get_word_timestamps(self._audio_duration_ms)
-                target_ms = 0
-                if self._word_timestamps and clamped_idx < len(self._word_timestamps):
-                    target_ms = self._word_timestamps[clamped_idx]
-                self._stop_event.clear()
-                self._winmm.mciSendStringW(f"play {self._mci_alias} from {target_ms}", None, 0, 0)
-                self._is_external_speaking = True
-                self._is_paused = False
-                return True
-            else:
-                char_offset = doc.get_char_offset_for_word_index(clamped_idx)
-                return self.speak(doc.raw_text[char_offset:], async_mode=True)
+            char_offset = doc.get_char_offset_for_word_index(clamped_idx)
+            return self.speak(doc.raw_text[char_offset:], async_mode=True)
 
         # English (SAPI)
         char_offset = doc.get_char_offset_for_word_index(clamped_idx)
@@ -328,12 +394,15 @@ class SpeechEngine:
                 mode = status_buf.value.lower()
                 if mode != "playing" and mode != "paused":
                     break
-                self._stop_event.wait(0.08)
+                self._stop_event.wait(0.05)
 
         except Exception as e:
             logging.error(f"Error in MCI audio playback: {e}")
         finally:
-            self._is_external_speaking = False
+            try:
+                self._winmm.mciSendStringW(f"close {self._mci_alias}", None, 0, 0)
+            except Exception:
+                pass
 
     async def _download_segment_audio(self, text_chunk: str, voice_name: str, rate_str: str) -> bytes:
         """Download raw MP3 audio bytes for a single speech segment."""
@@ -346,61 +415,123 @@ class SpeechEngine:
                 audio_chunks.append(chunk["data"])
         return b"".join(audio_chunks)
 
-    async def _build_bilingual_audio(self, segments: List[Tuple[str, str]], rate_str: str) -> bytes:
-        """Generate audio for each segment using its native neural voice and combine seamlessly."""
-        combined = []
-        for lang, chunk in segments:
+    async def _download_phrase_pipeline_worker(
+        self,
+        phrases: List[Tuple[str, str]],
+        audio_queue: "queue.Queue",
+        created_files: List[str],
+    ) -> None:
+        """Background coroutine that synthesizes phrases ahead of playback.
+        Dynamically applies speed adjustments (rate_str) to upcoming phrases.
+        """
+        for idx, (lang, text_chunk) in enumerate(phrases):
             if self._stop_event.is_set():
-                return b""
-            clean_chunk = chunk.strip()
-            if not clean_chunk:
-                continue
+                break
+
+            rate_val = self.get_rate()
+            rate_str = f"{rate_val * 5:+d}%" if rate_val != 0 else "+0%"
             voice = DEFAULT_HEBREW_VOICE if lang == "he" else DEFAULT_ENGLISH_NEURAL_VOICE
-            data = await self._download_segment_audio(clean_chunk, voice, rate_str)
+
+            data = await self._download_segment_audio(text_chunk, voice, rate_str)
+            if self._stop_event.is_set():
+                break
+
             if data:
-                combined.append(data)
-        return b"".join(combined)
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+                    file_path = f.name
+                    f.write(data)
+                created_files.append(file_path)
+                audio_queue.put((idx, file_path))
+
+        audio_queue.put(None)
 
     def _speak_hebrew_worker(self, text: str) -> None:
-        """Generate and play speech using natural neural voices with bilingual English/Hebrew switching."""
-        tmp_path = ""
+        """Pipelined neural speech playback:
+        1. Breaks text into natural 3-5 word phrases.
+        2. Starts playing the 1st phrase immediately (~0.8s) while fetching future phrases in background.
+        3. Remains instantly responsive to Stop (Ctrl+Alt+R), Pause (Ctrl+Alt+Space), and Speed (Ctrl+Alt+Up/Down).
+        """
+        created_files: List[str] = []
+        audio_queue: queue.Queue = queue.Queue(maxsize=3)
+
         try:
             self._stop_event.clear()
             self._is_external_speaking = True
 
-            # Calculate rate string for edge-tts (e.g. "+10%", "-10%")
-            rate_val = self.get_rate()
-            rate_str = f"{rate_val * 5:+d}%" if rate_val != 0 else "+0%"
-
-            # Segment into Hebrew and English chunks for authentic native pronunciation
-            segments = self.segment_bilingual_text(text)
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                audio_bytes = loop.run_until_complete(self._build_bilingual_audio(segments, rate_str))
-            finally:
-                try:
-                    loop.run_until_complete(asyncio.sleep(0.05))
-                except Exception:
-                    pass
-                loop.close()
-
-            if self._stop_event.is_set() or not audio_bytes:
+            phrases = self.segment_phrased_bilingual(text, max_words=5)
+            if not phrases:
                 return
 
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-                tmp_path = f.name
-                f.write(audio_bytes)
+            self._pipeline_phrases = phrases
+            # Map word indices for navigation tracking
+            self._pipeline_phrase_word_indices = []
+            accumulated_words = 0
+            for _, p_text in phrases:
+                self._pipeline_phrase_word_indices.append(accumulated_words)
+                accumulated_words += len(p_text.split())
 
-            self._play_audio_file(tmp_path)
+            def download_thread_target():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(
+                        self._download_phrase_pipeline_worker(phrases, audio_queue, created_files)
+                    )
+                finally:
+                    try:
+                        tasks = [t for t in asyncio.all_tasks(loop) if not t.done()]
+                        for t in tasks:
+                            t.cancel()
+                        if tasks:
+                            loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                        loop.run_until_complete(asyncio.sleep(0.05))
+                        loop.run_until_complete(loop.shutdown_asyncgens())
+                    except Exception:
+                        pass
+                    loop.close()
+
+            dl_thread = threading.Thread(
+                target=download_thread_target,
+                daemon=True,
+                name="HebrewPipelineDownloader",
+            )
+            dl_thread.start()
+
+            # Play phrases sequentially as they arrive from the download pipeline
+            while not self._stop_event.is_set():
+                try:
+                    item = audio_queue.get(timeout=0.2)
+                except queue.Empty:
+                    if not dl_thread.is_alive():
+                        break
+                    continue
+
+                if item is None:
+                    # Pipeline completed
+                    break
+
+                phrase_idx, file_path = item
+                if self._stop_event.is_set():
+                    break
+
+                self._pipeline_active_index = phrase_idx
+                self._play_audio_file(file_path)
+
         except Exception as e:
-            logging.error(f"Neural TTS generation failed: {e}. Falling back to SAPI.")
+            logging.error(f"Pipelined neural TTS failed: {e}. Falling back to SAPI.")
             self._is_external_speaking = False
-            # Fallback to SAPI
             with self._lock:
                 pythoncom.CoInitialize()
                 self._voice.Speak(text, SVS_PURGE_BEFORE_SPEAK | SVS_FLAGS_ASYNC)
+        finally:
+            self._is_external_speaking = False
+            # Clean up temporary phrase files
+            for fp in created_files:
+                try:
+                    if os.path.exists(fp):
+                        os.remove(fp)
+                except Exception:
+                    pass
 
     def speak(self, text: str, async_mode: bool = True) -> bool:
         """Speak given text aloud in Hebrew or English automatically."""

@@ -18,7 +18,7 @@ A lightweight background Windows utility that reads aloud any selected text acro
 - **Laptop Lid / Sleep & Wake Robustness:** Uses the native Windows kernel `RegisterHotKey` subsystem together with automatic `WM_POWERBROADCAST` (sleep/wake/resume) and `WM_WTSSESSION_CHANGE` (screen lock/unlock/logon) listeners. Closing your laptop lid, sleeping, or locking will never break the hotkeys — they are verified and re-registered upon opening and unlocking.
 - **Bilingual Hebrew & English Support with Native Pronunciation:**
   - **Automatic Language Detection:** Seamlessly handles pure Hebrew, pure English, and mixed Hebrew/English sentences.
-  - **Pipelined Ultra-Fast Hebrew Start & Instant Responsiveness:** Instead of waiting for long passages of Hebrew text to download in full before playback begins, the engine segments text into natural 3–5 word phrases and starts playing the first phrase almost immediately (~0.8s) while fetching future phrases asynchronously in the background. Stop (`Ctrl+Alt+R`), Pause (`Ctrl+Alt+Space`), and Speed Adjustments (`Ctrl+Alt+Up/Down`) respond instantaneously.
+  - **Pipelined Word-by-Word Processing & Instant Responsiveness:** When Hebrew text is included, the engine synthesizes and processes speech word by word. It starts playing the first word immediately (~0.8s) while fetching upcoming words ahead in the background, actively listening for hotkeys and requests (Stop: `Ctrl+Alt+R`, Pause: `Ctrl+Alt+Space`, Speed: `Ctrl+Alt+Up/Down`, Word Navigation: `Ctrl+Alt+Left/Right`) after each word.
   - **Native English Pronunciation inside Hebrew text:** When text begins in Hebrew and contains English terms (such as technical words, product names, or acronyms like `Ctrl+Alt+R`), the tool automatically segments the text and uses a native English neural voice (`Jenny`) for the English segments and the natural Hebrew neural voice (`Hila`) for the Hebrew segments, ensuring clear, natural pronunciation for both languages.
   - **PowerShell / Terminal Visual Reversal Correction:** Windows PowerShell and console windows store Hebrew text in visual left-to-right buffer order. The tool detects when text is captured from terminal/console windows and restores the true right-to-left logical reading order while keeping standard GUI apps (Notepad, Chrome, Teams, Outlook, Word) 100% untouched.
 - **Universal Application Support:**
@@ -167,8 +167,23 @@ If the utility ever stops responding (for example, after your laptop resumes fro
 
 ## 🗑️ How to Uninstall
 
-To remove the utility from auto-startup and stop any running instances:
+To remove the utility from auto-startup, stop any running instances, and clean the application directory:
 - Double-click **`uninstall.bat`**, or run:
 ```powershell
 .\uninstall.ps1
 ```
+
+---
+
+## ⚖️ License & Disclaimer
+
+This project is licensed under a strict **Free Non-Commercial License** (see `LICENSE` for the complete legal text):
+- **Free for Use**: You are free to use, modify, and share this tool for personal and educational non-commercial purposes.
+- **Strictly Non-Commercial**: Charging money, selling, or commercializing this software or its derivative works is strictly prohibited.
+- **No Liability / As-Is**: The software is provided **"AS IS" WITHOUT WARRANTY OF ANY KIND**. The author assumes **no responsibility or liability** for any issues, malfunctions, or results arising from the use of this software. Each user uses it entirely at their own risk.
+
+---
+
+## 📖 Installation Guides (Hebrew & English)
+- **English Guide**: [wher-and-how-to-get-it-eng.md](wher-and-how-to-get-it-eng.md)
+- **מדריך התקנה בעברית**: [wher-and-how-to-get-it-heb.md](wher-and-how-to-get-it-heb.md)

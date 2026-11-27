@@ -91,6 +91,29 @@ class TestSpeechEngine(unittest.TestCase):
         self.assertEqual(segments[2][0], "he")
         self.assertIn("הנה", segments[2][1])
 
+    def test_segment_words_bilingual(self):
+        sample = "שלום לכולם! Welcome to Python testing. הנה עוד מילה."
+        words = self.engine.segment_words_bilingual(sample)
+        self.assertEqual(len(words), 9)
+        self.assertEqual(words[0][0], "he")
+        self.assertEqual(words[0][1], "שלום")
+        self.assertEqual(words[1][0], "he")
+        self.assertEqual(words[1][1], "לכולם!")
+        self.assertEqual(words[2][0], "en")
+        self.assertEqual(words[2][1], "Welcome")
+        self.assertEqual(words[3][0], "en")
+        self.assertEqual(words[3][1], "to")
+        self.assertEqual(words[4][0], "en")
+        self.assertEqual(words[4][1], "Python")
+        self.assertEqual(words[5][0], "en")
+        self.assertEqual(words[5][1], "testing.")
+        self.assertEqual(words[6][0], "he")
+        self.assertEqual(words[6][1], "הנה")
+        self.assertEqual(words[7][0], "he")
+        self.assertEqual(words[7][1], "עוד")
+        self.assertEqual(words[8][0], "he")
+        self.assertEqual(words[8][1], "מילה.")
+
     def test_segment_speech_chunks_by_word_size(self):
         long_hebrew = "פיתחתי כלי רקע קל למחשב שמקריא בקול כל טקסט שמסמנים עם העכבר בכל תוכנה, וורד, אאוטלוק, כרום, סלאק, טימס, טרמינל ועוד. הקראה מידית: מסמנים טקסט ולוחצים Ctrl + Alt + R כדי לשמוע אותו מיד."
         chunks = self.engine.segment_phrased_bilingual(long_hebrew, max_words=5)

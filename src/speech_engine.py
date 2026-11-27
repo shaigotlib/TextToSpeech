@@ -99,6 +99,32 @@ class SpeechEngine:
 
         return segments
 
+    def segment_words_bilingual(self, text: str) -> List[Tuple[str, str]]:
+        """Segments text strictly word by word, attributing each word to its native language ('he' or 'en').
+        This enables fine-grained word-by-word playback and immediate listening for requests/commands
+        (e.g. stop, pause, speed, skip) after each individual word.
+        """
+        if not text or not text.strip():
+            return []
+
+        tokens = re.findall(r"[^\s]+", text.strip())
+        words: List[Tuple[str, str]] = []
+        for token in tokens:
+            has_heb = any("֐" <= c <= "׿" for c in token)
+            has_lat = any(("a" <= c <= "z") or ("A" <= c <= "Z") for c in token)
+            if has_heb and not has_lat:
+                words.append(("he", token))
+            elif has_lat and not has_heb:
+                words.append(("en", token))
+            else:
+                if has_heb:
+                    words.append(("he", token))
+                elif has_lat:
+                    words.append(("en", token))
+                else:
+                    words.append(("he", token))
+        return [(lang, w.strip()) for lang, w in words if w.strip()]
+
     def segment_phrased_bilingual(self, text: str, max_words: int = 5) -> List[Tuple[str, str]]:
         """Splits text into short bite-sized phrases (typically 3-5 words) broken along natural
         clause boundaries (. , ! ? ; : \n), retaining native language attribution ('he' or 'en').
@@ -407,24 +433,31 @@ class SpeechEngine:
     async def _download_segment_audio(self, text_chunk: str, voice_name: str, rate_str: str) -> bytes:
         """Download raw MP3 audio bytes for a single speech segment."""
         communicate = edge_tts.Communicate(text_chunk, voice_name, rate=rate_str)
+        stream = communicate.stream()
         audio_chunks = []
-        async for chunk in communicate.stream():
-            if self._stop_event.is_set():
-                return b""
-            if chunk["type"] == "audio":
-                audio_chunks.append(chunk["data"])
+        try:
+            async for chunk in stream:
+                if self._stop_event.is_set():
+                    return b""
+                if chunk["type"] == "audio":
+                    audio_chunks.append(chunk["data"])
+        finally:
+            try:
+                await stream.aclose()
+            except Exception:
+                pass
         return b"".join(audio_chunks)
 
     async def _download_phrase_pipeline_worker(
         self,
-        phrases: List[Tuple[str, str]],
+        units: List[Tuple[str, str]],
         audio_queue: "queue.Queue",
         created_files: List[str],
     ) -> None:
-        """Background coroutine that synthesizes phrases ahead of playback.
-        Dynamically applies speed adjustments (rate_str) to upcoming phrases.
+        """Background coroutine that synthesizes words/phrases ahead of playback.
+        Dynamically applies speed adjustments (rate_str) to upcoming words.
         """
-        for idx, (lang, text_chunk) in enumerate(phrases):
+        for idx, (lang, text_chunk) in enumerate(units):
             if self._stop_event.is_set():
                 break
 
@@ -446,36 +479,34 @@ class SpeechEngine:
         audio_queue.put(None)
 
     def _speak_hebrew_worker(self, text: str) -> None:
-        """Pipelined neural speech playback:
-        1. Breaks text into natural 3-5 word phrases.
-        2. Starts playing the 1st phrase immediately (~0.8s) while fetching future phrases in background.
-        3. Remains instantly responsive to Stop (Ctrl+Alt+R), Pause (Ctrl+Alt+Space), and Speed (Ctrl+Alt+Up/Down).
+        """Word-by-word pipelined neural speech playback:
+        1. Breaks Hebrew/bilingual text into words (or clause units).
+        2. Synthesizes and begins playing the first word immediately (~0.8s) while fetching future words in background.
+        3. Listens for user hotkey requests/commands (Stop: Ctrl+Alt+R, Pause: Ctrl+Alt+Space, Speed: Ctrl+Alt+Up/Down, Navigation)
+           after each word is processed and played.
         """
         created_files: List[str] = []
-        audio_queue: queue.Queue = queue.Queue(maxsize=3)
+        audio_queue: queue.Queue = queue.Queue(maxsize=4)
 
         try:
             self._stop_event.clear()
             self._is_external_speaking = True
 
-            phrases = self.segment_phrased_bilingual(text, max_words=5)
-            if not phrases:
+            # Segment word-by-word for maximum granularity and responsiveness
+            words = self.segment_words_bilingual(text)
+            if not words:
                 return
 
-            self._pipeline_phrases = phrases
-            # Map word indices for navigation tracking
-            self._pipeline_phrase_word_indices = []
-            accumulated_words = 0
-            for _, p_text in phrases:
-                self._pipeline_phrase_word_indices.append(accumulated_words)
-                accumulated_words += len(p_text.split())
+            self._pipeline_phrases = words
+            # Map word indices for navigation tracking (1-to-1 for word-by-word mode)
+            self._pipeline_phrase_word_indices = list(range(len(words)))
 
             def download_thread_target():
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
                     loop.run_until_complete(
-                        self._download_phrase_pipeline_worker(phrases, audio_queue, created_files)
+                        self._download_phrase_pipeline_worker(words, audio_queue, created_files)
                     )
                 finally:
                     try:
@@ -497,10 +528,10 @@ class SpeechEngine:
             )
             dl_thread.start()
 
-            # Play phrases sequentially as they arrive from the download pipeline
+            # Play word by word sequentially as they arrive; listen for commands between each word
             while not self._stop_event.is_set():
                 try:
-                    item = audio_queue.get(timeout=0.2)
+                    item = audio_queue.get(timeout=0.15)
                 except queue.Empty:
                     if not dl_thread.is_alive():
                         break
@@ -510,12 +541,18 @@ class SpeechEngine:
                     # Pipeline completed
                     break
 
-                phrase_idx, file_path = item
+                word_idx, file_path = item
+                # Check for stop request right before playing word
                 if self._stop_event.is_set():
                     break
 
-                self._pipeline_active_index = phrase_idx
+                self._pipeline_active_index = word_idx
+                self._last_word_index = word_idx
                 self._play_audio_file(file_path)
+
+                # Listen for commands/requests right after each word finishes processing/playback
+                if self._stop_event.is_set():
+                    break
 
         except Exception as e:
             logging.error(f"Pipelined neural TTS failed: {e}. Falling back to SAPI.")
@@ -525,7 +562,7 @@ class SpeechEngine:
                 self._voice.Speak(text, SVS_PURGE_BEFORE_SPEAK | SVS_FLAGS_ASYNC)
         finally:
             self._is_external_speaking = False
-            # Clean up temporary phrase files
+            # Clean up temporary word audio files
             for fp in created_files:
                 try:
                     if os.path.exists(fp):

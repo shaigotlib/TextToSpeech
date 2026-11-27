@@ -25,7 +25,8 @@ param(
     [switch]$UpdateDependencies,
     [switch]$SimulateOldPython,
     [switch]$SimulateNoPython,
-    [switch]$SkipActualWebInstall
+    [switch]$SkipActualWebInstall,
+    [switch]$InstallInPlace
 )
 
 $ErrorActionPreference = "Stop"
@@ -337,9 +338,36 @@ if ($sapiCount -and [int]$sapiCount -gt 0) {
 }
 
 # -----------------------------------------------------------------------------
-# 6. Configure Windows Auto-Start upon Reboot (Startup Shortcut + Registry Run)
+# 6. Deploy to Standard Windows Application Directory & Configure Auto-Start
 # -----------------------------------------------------------------------------
-Write-Host "`n[*] Configuring Windows Auto-Start..." -ForegroundColor Cyan
+Write-Host "`n[*] Configuring Standard Windows Installation Path & Auto-Start..." -ForegroundColor Cyan
+
+# Standard Windows user application path (%LOCALAPPDATA%\ReadAloudTTS)
+$StandardAppDir = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)) "ReadAloudTTS"
+
+if (-not $InstallInPlace -and ($ScriptDir.TrimEnd('\') -ne $StandardAppDir.TrimEnd('\'))) {
+    Write-Host "[*] Deploying tool to standard Windows location: $StandardAppDir" -ForegroundColor Yellow
+    if (-not (Test-Path $StandardAppDir)) {
+        New-Item -ItemType Directory -Path $StandardAppDir -Force | Out-Null
+    }
+
+    # Copy files and src folder to standard destination
+    $ItemsToDeploy = @("main.pyw", "stop.ps1", "stop.bat", "start.bat", "uninstall.ps1", "uninstall.bat", "LICENSE", "src")
+    foreach ($item in $ItemsToDeploy) {
+        $srcPath = Join-Path $ScriptDir $item
+        if (Test-Path $srcPath) {
+            Copy-Item -Path $srcPath -Destination $StandardAppDir -Recurse -Force
+        }
+    }
+
+    $TargetWorkingDir = $StandardAppDir
+    $TargetScriptPath = Join-Path $StandardAppDir "main.pyw"
+    Write-Host "[OK] Deployed to standard application directory: $StandardAppDir" -ForegroundColor Green
+} else {
+    $TargetWorkingDir = $ScriptDir
+    $TargetScriptPath = $MainScriptPath
+    Write-Host "[OK] Using installation directory: $TargetWorkingDir" -ForegroundColor Green
+}
 
 $StartupFolder = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Startup)
 $ShortcutPath = Join-Path $StartupFolder "ReadAloudTTS.lnk"
@@ -347,17 +375,17 @@ $ShortcutPath = Join-Path $StartupFolder "ReadAloudTTS.lnk"
 $WScriptShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WScriptShell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = $PythonWPath
-$Shortcut.Arguments = "`"$MainScriptPath`""
-$Shortcut.WorkingDirectory = $ScriptDir
+$Shortcut.Arguments = "`"$TargetScriptPath`""
+$Shortcut.WorkingDirectory = $TargetWorkingDir
 $Shortcut.Description = 'Read Aloud Selected Text Background Utility (Ctrl+Alt+R, Toggle: Ctrl+Alt+\)'
 $Shortcut.Save()
 
 Write-Host "[OK] Startup shortcut created: $ShortcutPath" -ForegroundColor Green
-Write-Host "     Target: $PythonWPath `"$MainScriptPath`"" -ForegroundColor Gray
+Write-Host "     Target: $PythonWPath `"$TargetScriptPath`"" -ForegroundColor Gray
 
 try {
     $RunKeyPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $RunCmd = "`"$PythonWPath`" `"$MainScriptPath`""
+    $RunCmd = "`"$PythonWPath`" `"$TargetScriptPath`""
     Set-ItemProperty -Path $RunKeyPath -Name "ReadAloudTTS" -Value $RunCmd -Force -ErrorAction SilentlyContinue
     Write-Host "[OK] Registry autostart key configured in HKCU Run." -ForegroundColor Green
 } catch {
@@ -369,14 +397,16 @@ try {
 # -----------------------------------------------------------------------------
 Write-Host "`n[*] Managing running instances..." -ForegroundColor Cyan
 
-$stopScript = Join-Path $ScriptDir "stop.ps1"
+$stopScript = Join-Path $TargetWorkingDir "stop.ps1"
 if (Test-Path $stopScript) {
     & powershell -NoProfile -ExecutionPolicy Bypass -File $stopScript
+} elseif (Test-Path (Join-Path $ScriptDir "stop.ps1")) {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ScriptDir "stop.ps1")
 }
 
 if (-not $TestOnly) {
     Write-Host "[*] Launching Read Aloud utility in background..." -ForegroundColor Yellow
-    Start-Process -FilePath $PythonWPath -ArgumentList "`"$MainScriptPath`"" -WorkingDirectory $ScriptDir
+    Start-Process -FilePath $PythonWPath -ArgumentList "`"$TargetScriptPath`"" -WorkingDirectory $TargetWorkingDir
     Start-Sleep -Seconds 1
     Write-Host "[OK] Read Aloud utility is now active and running in the background!" -ForegroundColor Green
 } else {

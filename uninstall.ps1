@@ -36,6 +36,17 @@ try {
     Write-Warning "Could not remove HKCU Run key: $_"
 }
 
+# 3. Remove Standard App Directory (%LOCALAPPDATA%\ReadAloudTTS) if installed there
+$StandardAppDir = Join-Path ([System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::LocalApplicationData)) "ReadAloudTTS"
+if (Test-Path $StandardAppDir) {
+    try {
+        Remove-Item -Path $StandardAppDir -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "[✓] Removed standard application directory: $StandardAppDir" -ForegroundColor Green
+    } catch {
+        Write-Warning "Could not remove directory $StandardAppDir: $_"
+    }
+}
+
 Write-Host "=========================================" -ForegroundColor Yellow
 Write-Host "Uninstallation Complete." -ForegroundColor Green
 Write-Host "=========================================" -ForegroundColor Yellow
